@@ -1,0 +1,168 @@
+---
+title: "Case Fatality Rate Analysis"
+author: "by Tamunoye Darego"
+date: "2022-08-26"
+output: html_document
+---
+
+### Introduction
+According to Britannica; Case fatality rate is the proportion of people who die from a specified disease among all individuals diagnosed with the disease over a certain period of time. Case fatality rate is used in this study to measure the severity of diseases in teenagers and children resident in Nigeria.
+
+### Aim
+To determine the most dangerous diseases to teenagers and children.
+
+### Objectives
+* Highlighting the most common diseases in teenagers and children.
+* Comparing the case fatality rate in the different settlements(urban vs rural) across Nigeria.
+* Showcasing male vs female case fatality rates.
+
+### Data and Data Source
+The [Disease Outbreak in Nigeria Datasets](https://www.kaggle.com/datasets/eiodelami/disease-outbreaks-in-nigeria-datasets) is a public dataset simulated and collated by Emmanuel Odelami, this dataset is auto-generated based on the most common and deadly disease outbreaks in Nigeria. This dataset contains disease reports from 2009 to 2018 from all 36 states from both urban and rural settlements detailing their ages and diseases respectively.
+
+### Cleaning and Transforming the data
+#### Setting up the enviroment
+The installed packages to be used are loaded
+```{r}
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(readr)
+library(ggplot2)
+```
+
+#### Loading the dataset
+```{r}
+disease_outbreak <- read.csv("meningitis_dataset.csv")
+```
+
+#### Exploring the dataset
+The data is explored to get a grasp of the structure of the dataset
+```{r}
+tibble(disease_outbreak)
+colnames(disease_outbreak)
+```
+
+#### Checking for and removing duplicates from the dataset
+```{r}
+disease_outbreak <- distinct(disease_outbreak)
+tibble(disease_outbreak)
+```
+
+#### Sorting the dataset
+The dataset contains a lot of redundant information so the select() and filter() functions are used to reduce the redundancy; the necessary criteria are selected and only confirmed reports from teenagers and children are included
+```{r}
+disease_outbreak <- disease_outbreak %>%
+  select(c(id,firstname,surname,gender,age,disease,settlement,state,report_year,health_status,report_outcome))%>%
+  filter(age < 20)%>%
+  filter(report_outcome == "Confirmed" | report_outcome == "confirmed")
+tibble(disease_outbreak)
+```
+
+##### Separating the dataset into Settlements
+Here the dataset is split into the various settlements
+```{r}
+#Urban Vs Rural
+urban <- disease_outbreak%>%
+  filter(settlement == "Urban")
+rural <- disease_outbreak%>%
+  filter(settlement == "Rural")
+```
+
+##### Separating the dataset into Gender
+Finally, the dataset is then split by the gender
+```{r}
+#Gender
+male <- disease_outbreak%>%
+  filter(gender == "Male")
+female <- disease_outbreak%>%
+  filter(gender == "Female")
+```
+
+### Analyzing the Trends and Relationships
+#### Reported Cases
+```{r}
+#Health Status
+ggplot(disease_outbreak, aes(x = health_status, fill = health_status)) + geom_bar() + guides(fill = guide_legend(title = "Health Status")) + scale_fill_brewer(palette = "Dark2") + labs(title = "Health Status Case Spread", x = "Health Status", y = "Number of Cases", subtitle = "A bar chart indicating the total number of cases and their health status")
+
+#Gender
+ggplot(disease_outbreak, aes(x = gender, fill = gender)) + geom_bar() + scale_fill_brewer(palette = "Dark2") + labs(title = "Gender Case Spread", x = "Gender", y = "Cases", subtitle = "A bar chart depicting the cases seperated by each Gender") + guides(fill = guide_legend(title = "Gender"))
+
+#Settlements
+ggplot(disease_outbreak, aes(x = settlement, fill = settlement)) + geom_bar() + scale_fill_brewer(palette = "Dark2") + labs(title = "Settlement Case Spread", x = "Settlement", y = "Cases", subtitle = "A bar chart depicting the cases and settlements") + guides(fill = guide_legend(title = "Settlement"))
+```
+
+* There have been over 45,000 confirmed cases reported between 2009 and 2018, with over 22,000 of those cases resulting in death.
+* 52% of the reported cases is made up of females while the remaining 48% is made up of the male demographic
+* The report is evenly split covering both urban and rural settlements
+```{r}
+#Plotting Yearly Reports
+chart <- disease_outbreak%>%
+  group_by(report_year)%>%
+  count(report_year)
+ggplot(chart, aes(x = report_year, y = n)) + geom_point()+ geom_smooth() + labs(title = "Years Vs Cases I", x = "Years", y = "Number of Cases", subtitle = "A scatterplot depicting the Yearly Cases")
+
+ggplot(disease_outbreak, aes(x = report_year, fill = health_status)) + geom_bar() + labs(title = "Years Vs Cases II", x = "Years", y = "Number of Cases", subtitle = "A stacked bar chart depicting the Yearly Cases and Health Status") + guides(fill = guide_legend(title = "Health Status")) + scale_fill_brewer(palette = "Dark2")
+```
+
+* There is a negative correlation number of cases and the years.
+* This reduction in the number of cases has not resulted in a reduction in the case fatality rate.
+* The case fatality rate across the years on average is 50.2%.
+
+#### Disease breakdown
+```{r}
+ggplot(disease_outbreak, aes(y = disease, fill = disease)) + geom_bar() + scale_fill_brewer(palette = "RdYlGn") + labs(title = "Most Common Diseases", x = "Number of Cases", y = "Disease", subtitle = "A bar chart of the most common diseases for Teenages and Children") + guides(fill = guide_legend(title = "Disease"))
+
+```
+
+* There are over 4000 cases for every disease
+* The most common diseases being Yellow Fever, Diarrhea, Viral Haemmorrhaphic Fever, Meningitis and Cholera
+
+```{r}
+ggplot(disease_outbreak, aes(y = disease, fill = disease)) + geom_bar() + scale_fill_brewer(palette = "RdYlGn") + labs(title = "Diseases Vs Health Status", x = "Number of Cases", y = "Disease", subtitle = "A bar chart depicting the health status of each disease") + guides(fill = guide_legend(title = "Disease")) + facet_wrap(~health_status) + theme(axis.text.x = element_text(angle = 90))
+```
+
+Listed Below are the diseases with the highest Case fatality rates;
+
+* Diarrhea and Ebola with 51.1% respectively
+* Meningitis 50.7%
+* Marburg Virus 50.5%
+* Yellow Fever 50%
+
+##### Male vs Female Disease breakdown
+```{r}
+ggplot(male, aes(y = disease, fill = disease)) + geom_bar() + scale_fill_brewer(palette = "RdYlGn") + guides(fill = guide_legend(title = "Disease")) + labs(x = "Number of Cases", y = "Disease", title = "Male Disease Reports", subtitle = "A bar chart depicting the reported cases for males", caption = "The cases are split by their health status") + facet_wrap(~health_status)
+
+ggplot(female, aes(y = disease, fill = disease)) + geom_bar() + scale_fill_brewer(palette = "RdYlGn") + guides(fill = guide_legend(title = "Disease")) + labs(x = "Number of Cases", y = "Disease", title = "Female Disease Reports", subtitle = "A bar chart depicting the reported cases for females", caption = "The cases are split by their health status") + facet_wrap(~health_status)
+```
+
+* The fatality rates for the male and female teenagers and children are 49.9% and 50.5% respectively with the female fatality rate slightly higher than the male.
+* The most common diseases in males are the Marbug Virus, Malaria and Ebola.  The highest case fatality rates are recorded in Diarrhea(51.6%), Rubella Mars(51.3%) and Viral Hemorrhagic Fever(50.9%).
+* While Diarrhea, Viral Haemmorrhaphic Fever and Yellow Fever are the most common diseases for the females. The highest case fatality rates are recorded in Diarrhea(50.8%), Meningitis(51.7%) and Ebola(52.9%).
+
+##### Settlement Disease breakdown
+###### Urban vs Rural
+```{r}
+ggplot(urban, aes(y = disease, fill = disease)) + geom_bar() + scale_fill_brewer(palette = "RdYlGn") + facet_wrap(~health_status) + guides(fill = guide_legend(title = "Disease")) + theme(axis.text.x = element_text(angle = 90)) + labs(title = "Urban Disease Reports", x = "Number of Cases", y = "Disease")
+
+ggplot(rural, aes(y = disease, fill = disease)) + geom_bar() + scale_fill_brewer(palette = "RdYlGn") + facet_wrap(~health_status) + guides(fill = guide_legend(title = "Disease")) + theme(axis.text.x = element_text(angle = 90)) + labs(title = "Rural Disease Reports", x = "Number of Cases", y = "Disease")
+```
+
+* The case fatality rate of the rural settlement(50.3%) slightly just edges that of the urban settlement(50.1%).
+* The most common diseases in urban settlements are Diarrhea, Cholera and Viral Haemmorrhaphic Fever, whereas the most common diseases in rural settlements are Diarrhea, Meningitis and Yellow Fever. 
+* High case fatality rates where recorded in Diarrhea(51.1%) for both urban and rural settlements, this was accompanied by Yellow Fever(51%) and Marburg Virus(51.7%) for urban settlements. The rural settlements also recorded a 52% case fatality rate for Meningitis.
+
+#### Conclusions and Recommendations
+As Diarrhea was the most common disease and also the most fatal disease;
+
+* A Rotavirus vaccination campaign should be held to help reduce the severity of the diarrhea, and provision of safe water, adequate sanitation and proper human waste disposal.
+* Educate caregivers and parents on diarrhea and when they should seek medical assistance.
+
+Other diseases have a case fatality rate greater than 45%, which is far from ideal, hence further analysis would be required to determine;
+
+* If treatment was administered for the reported cases.
+* If there was an outbreak that caused a spike in the case fatality rate.
+* The regions most affected by this diseases.
+
+To help create a campaign and strategy to reduce the case fatality rates to an acceptable threshold.
+
+**Thank You!** for your time.

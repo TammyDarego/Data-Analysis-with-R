@@ -1,0 +1,259 @@
+---
+title: "ABC Multistate Bank Customer Analysis"
+author: "by Tamunoye Darego"
+date: "2022-09-07"
+output: html_document
+---
+
+#### **Business Task**
+Analyzing the customer dataset provided by ABC Multinational Bank to highlight any trends in the data and provide insights.
+
+#### **The Available Data**
+We have been provided a dataset in .csv(Comma Separated Value) format, containing 10,000 customers from the bank and each customer has the following attributes;
+
+* Customer ID - The Unique ID of each individual customer
+* Credit Score - A number depicting the customer's credithworthiness
+* Country - The country the customer banks from
+* Gender - The gender the customer identifies with
+* Age - Depicts the customers age
+* Tenure - Indicates how length in years the customer has been with the bank
+* Balance - The amount currently available in the customer's account
+* Products Number - The number of products purchased by the customer through the bank
+* Credit Card - Indicates the customer has a credit card
+* Active Member - Indicates if the customer is an active or inactive
+* Estimated Salary - Bank Estimation of the income of the customer
+* Churn - Indicator of if the customer has left the bank or not
+
+#### **Loading and Cleaning the Data**
+##### **Preparing the Environment**
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+library(janitor)
+library(tidyr)
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(forcats)
+library(scales)
+```
+
+##### **Importing the data**
+Now that the environment has been prepared and the necessary packages loaded, the data is imported into the **customer** dataset below;
+```{r}
+customer <- read.csv("Bank Customer Churn Prediction.csv")
+```
+
+##### **Exploring the data**
+We then proceed to explore the data to get a grasp of it;
+```{r}
+str(customer)
+head(customer)
+```
+*NOTE:* The credit card, active member and churn  attributes contain Boolean values depicting True(1) and False(0)
+
+##### **Cleaning the data**
+The first step we take is to query the data to check if there are duplicate customers; using the customer_id as that is unique to each customer.
+```{r, results='hide'}
+#Check for duplicates
+get_dupes(customer, customer_id)
+```
+There are no duplicates in the data.
+Hence, we proceed to alter the Boolean values to be more accessible and readable;
+```{r, results='hide'}
+#Changing the datatype from Integers to Characters
+customer$churn <- as.character(customer$churn)
+customer$active_member <- as.character(customer$active_member)
+customer$credit_card <- as.character(customer$credit_card)
+
+#Converting the Boolean values to the desired values
+customer_updated <- customer %>% mutate(credit_card = credit_card) %>%
+  mutate(credit_card = fct_recode(credit_card, "Credit Card" = "1", "No-Credit card" = "0"), active_member = fct_recode(active_member, "Active" = "1", "Inactive" = "0"), churn = fct_recode(churn, "Churned" = "1", "Retained" = "0"))
+head(customer_updated)
+```
+
+Finally, we remove the Customer Id and the other character datatypes from the dataset to create a table that we can use to check for correlation afterwards;
+```{r, results='hide'}
+#Churned customers dataset separated
+customer_churned <- customer_updated %>%
+  filter(churn == "Churned")
+
+#Drop columns from the dataset
+drop<- c("customer_id","country","gender","active_member","churn","credit_card")
+customer_corr <-customer_updated[,!names(customer_updated) %in% drop]
+customer_churned_corr <- customer_churned[,!names(customer_updated) %in% drop]
+head(customer_corr)
+```
+*NOTE:* The Customer Id was dropped as it is a unique value and has no effect on the correlation of the other variables in the dataset.
+
+#### **Exploratory Data Analysis**
+##### **CUSTOMER ANALYSIS**
+```{r, echo=FALSE}
+ggplot(customer, aes(x = country, fill = country)) + geom_bar() + scale_fill_brewer(palette = "Blues") + labs(title = "Bank Customers vs Country", x = "Country", y = "Customer Count", subtitle = "customers are grouped by the countries they bank from") + theme_minimal()
+```
+
+The bank has a large customer base from France; with more than 50% of the customers banking from France.
+
+```{r, echo=FALSE}
+chart <- count(customer,gender)
+piepercent <- percent(round(chart$n/sum(chart$n),2))
+pie(chart$n, labels = piepercent, col = c("pink", "lightblue"), main = "Customer Gender Split")
+legend("topright", c("Male", "Female"), cex = 0.8,
+   fill = c("lightblue", "pink"))
+```
+
+The bank's customers are predominantly male which make up 55% of the customer base with the females making up the remaining 45%
+
+```{r, echo=FALSE}
+ggplot(customer, aes(x = credit_score)) + geom_histogram(color = "blue", fill = "lightblue", bins = 30) + labs(title = "Bank Customer Credit Scores", x = "Credit Score", y = "Customer Count") + theme_minimal()
+```
+
+The average credit scores of the customers is 650, with most of the customers having credit scores between 600 and 700
+
+```{r, echo=FALSE}
+ggplot(customer, aes(x = age)) + geom_histogram(color = "blue", fill = "lightblue", bins = 30) + labs(title = "Customer Ages", x = "Age", y = "Customer Count") + theme_minimal()
+```
+
+Majority of the bank's customers are below the age of 50; and have the average age of 39.
+
+```{r, echo=FALSE}
+ggplot(customer, aes(x = tenure)) + geom_bar(color = "blue", fill = "lightblue") + labs(title = "Years spent as a customer", x = "Number of Years", y = "Customer Count") + theme_minimal()
+```
+
+Most of the customers have been with the bank for more than a year.
+
+```{r, echo=FALSE}
+chart <- count(customer,active_member)
+piepercent <- percent(round(chart$n/sum(chart$n),2))
+pie(chart$n, labels = piepercent, col = c("brown", "lightblue"), main = "Customer Activity Status")
+legend("topright", c("Inactive", "Active"), cex = 0.8,
+   fill = c("brown", "lightblue"))
+```
+
+A huge percent of the bank's customers are inactive; 48% of the total customer count are reported to be inactive members.
+
+```{r, echo=FALSE}
+chart <- count(customer,churn)
+piepercent <- percent(round(chart$n/sum(chart$n),2))
+pie(chart$n, labels = piepercent, col = c("lightblue", "brown"), main = "Customer Retention")
+legend("topright", c("Retained", "Churned"), cex = 0.8,
+   fill = c("lightblue", "brown"))
+```
+
+The bank managed to retain 80% of their customers with the remaining 20% churned out.
+
+```{r, echo=FALSE}
+chart <- count(customer,credit_card)
+piepercent <- percent(round(chart$n/sum(chart$n),2))
+pie(chart$n, labels = piepercent, col = c("brown", "lightblue"), main = "Customer Credit Card Usage")
+legend("topright", c("Credit card", "No Credit card"), cex = 0.8,
+   fill = c("lightblue", "brown"))
+```
+
+Only 29% of the ABC multinational bank's customer base do not make use of credit cards.
+
+```{r, echo=FALSE}
+corrplot(cor(customer_corr), method = "number")
+```
+
+There is no significant correlation to be observed with only a weak correlation existing between the balance and product numbers.
+
+##### **CHURNED CUSTOMER ANALYSIS**
+```{r, echo=FALSE}
+ggplot(customer_updated, aes(x = country, fill = churn)) + geom_bar(position = position_dodge()) + scale_fill_manual(values = c("lightblue","brown")) + labs(title = "Churned customers per Country", x = "Country", y = "Customer Count", subtitle = "churned customers are grouped by the countries they bank from") + theme_minimal()
+```
+
+Germany recorded the highest amount of churned customers with 48% of the German customers churned.
+
+```{r, echo=FALSE}
+chart <- count(customer_churned,gender)
+piepercent <- percent(round(chart$n/sum(chart$n),2))
+pie(chart$n, labels = piepercent, col = c("pink", "lightblue"), main = "Churned Customer Gender Split")
+legend("topright", c("Male", "Female"), cex = 0.8,
+   fill = c("lightblue", "pink"))
+```
+
+Majority of the churned customers(56%) were female despite the total population of the bank being predominantly male.
+
+```{r, echo=FALSE}
+ggplot(customer_churned, aes(x = credit_score)) + geom_histogram(color = "blue", fill = "lightblue", bins = 30) + labs(title = "Churned Customer Credit Scores", x = "Credit Score", y = "Customer Count") + theme_minimal()
+```
+
+The average credit scores for the churned customers(645) is slightly lower than the overall average credit score, but majority of the credit scores of churned customers still falls between the 600 and 700 range.
+
+```{r, echo=FALSE}
+ggplot(customer_updated, aes(x = age)) + geom_histogram(color = "blue", fill = "lightblue", bins = 30) + labs(title = "Churned vs Retained Customer Ages", x = "Age", y = "Customer Count") + theme_minimal() + facet_wrap(~churn)
+```
+
+The average age of the churned customer(45) is higher than that of the retained customer(37) with majority of the churned customers between the ages of 35 and 60
+
+```{r, echo=FALSE}
+ggplot(customer_churned, aes(x = tenure)) + geom_bar(color = "blue", fill = "lightblue") + labs(title = "Years spent by churned customers", x = "Number of Years", y = "Customer Count") + theme_minimal()
+```
+
+Majority of the bank's churned customers left after spending one year at the bank.
+
+```{r, echo=FALSE}
+chart <- count(customer_churned,active_member)
+piepercent <- percent(round(chart$n/sum(chart$n),2))
+pie(chart$n, labels = piepercent, col = c("brown", "lightblue"), main = "Churned Customer Activity Status")
+legend("topright", c("Inactive", "Active"), cex = 0.8,
+   fill = c("brown", "lightblue"))
+```
+
+As expected most of the customers who left the bank were inactive members which could serve as an indicator as to to why they left.But 36% of the churned customers were still active customers.
+
+```{r, echo=FALSE}
+ggplot(customer_updated, aes(x = products_number, fill = churn)) + geom_bar(position = position_dodge()) + labs(title = "Products purchased by Customers", x = "Number of Years", y = "Customer Count") + theme_minimal() + scale_fill_manual(values = c("lightblue","brown"))
+```
+
+Customers that purchased more products through the bank tended to be churned as 100% of the customers that purchased 4 products left and 79% of those that purchased 3 products also being churned out.
+
+```{r, echo=FALSE}
+corrplot(cor(customer_churned_corr), method = "number")
+```
+
+There are still no correlations within the churned customer dataset; as it was with the total customer dataset
+
+#### **Conclusion and Recommendation**
+Based on the data available from he ABC Multinational Bank dataset below are my recommendations grouped by category;
+
+**Country**
+
+* The French branches make up a huge portion of the customer base.
+
+* The bank should set up a campaign to expand the customer base in Germany, Spain, and could later look to expand to other surrounding countries.
+
+* German branches recorded the highest churn rate with 48% hence further analysis would be required to determine why.
+
+**Credit Scores**
+
+* The credit scores of most customers of the bank are generally considered to be above the good threshold.
+
+* Notwithstanding, good credit scores were not enough to deter customers from churning out.
+
+**Gender**
+
+* The gender split between the male and female customers was 55% and 45% respectively.
+
+* Most of the churned customers turned out to be women so further analysis is required to find out the cause.
+
+**Activity Levels**
+
+* A whooping 48% of the bank's customers were Inactive which is far from ideal; hence, analysis would be required to determine the cause of the high percentage of inactive members.
+
+**Age**
+
+* Younger customers made up most of the retained customer base so efforts should be made to acquire young customers as they were less likely to leave.
+
+* Analysis should also be carried out to determine why older customers were more likely to leave.
+
+**Tenure and Purchased Products**
+
+* Majority of the churned customers left after one year with the bank; although it is important to note that customers still left after spending a considerable amount of time at the bank.
+
+* Analysis is required to determine why customers that bought more products with the bank ended up leaving the bank, as none of the customers that bought 4 products with the bank were retained.
+
+**Churn Rate**
+The bank recorded a churn rate of 20% which is below the average churn rate for financial institutions which is 25%. Hence, I recommend the bank keep implementing more methods and strategies to reduce the churn rate even further.
+
+**Thank You!!!** for your time.

@@ -1,0 +1,132 @@
+---
+title: "Chocolate Bar Ratings Analysis"
+author: "by Tamunoye Darego"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+<center>
+
+![](https://post.greatist.com/wp-content/uploads/sites/2/2021/07/GRT-chocolate-bar-broken-732x549-thumb-732x549.jpg){width=200%,height=100%,align=center}
+</center>
+<br>
+
+Can't decide on what chocolate bar to get next? Are you looking for a new chocolate bar to try? Or maybe you are intrigued by what is generally considered to be the best chocolate bar available?
+
+This analysis is conducted using R on the chocolate bar ratings from all over the world, to highlight what factors affect these ratings, what these chocolate bars might contain and to help you decide what chocolate bar you would love to try next.
+
+### About the Dataset
+This dataset is made up of 2,500 chocolate bar ratings from around the globe. The chocolate bars rated are predominantly plain dark chocolate; these ratings do not reflect health benefits, social missions or organic status. The ratings have been accumulated from 2006 to 2021, the chocolate bars have been evaluated from a combination of both objective qualities and subjective interpretation, the rating represents an experience with one bar from a specific batch.
+
+The Rating system is detailed below;
+
+* 4.0 - 5.0 = Outstanding
+* 3.5 - 3.9 = Highly Recommended
+* 3.0 - 3.49 = Recommended
+* 2.0 - 2.9 = Disappointing
+* 1.0 - 1.9 = Unpleasant
+
+### Importing and Exploring the Dataset
+The packages to be used for the analysis are loaded into the R environment
+```{r, warning=FALSE, message=FALSE}
+# Loading the libraries
+library(dplyr)
+library(tidyr)
+library(janitor)
+library(ggplot2)
+library(corrplot)
+library(tm)
+library(wordcloud)
+```
+<br>
+
+#### Loading the dataset
+The dataset is imported into the R environment
+```{r}
+#Importing the dataset
+chocolate_bars <- read.csv("chocolate_bars.csv")
+```
+<br>
+
+#### Checking the structure of the dataset
+```{r}
+#Returns the structure of the dataset
+str(chocolate_bars)
+```
+<br>
+
+#### Checking if there are duplicate entries in the dataset
+```{r, warning=FALSE, message=FALSE}
+# Query to return any duplicate reviews
+get_dupes(chocolate_bars)
+```
+<br>
+
+#### Checking the summary of the dataset
+```{r}
+#Returns a detailed summary of the dataset
+summary(chocolate_bars)
+```
+<br>
+
+#### Removing missing values from the dataset
+The summary of the dataset indicates that there are (87) missing values from the number of ingredients field hence we remove these missing values;
+```{r}
+#Filtering out missing values
+chocolate_bars <- chocolate_bars %>% filter(num_ingredients != "NA")
+```
+
+### Analyzing and Visualizing the Data
+#### Bean origins with the highest ratings
+```{r, echo=FALSE, fig.width= 10, fig.height= 5}
+bean_origin_rating <- chocolate_bars %>% group_by(bean_origin) %>% summarise(Average_rating = mean(rating))
+
+ggplot(data = bean_origin_rating, aes(x = bean_origin, y = Average_rating, fill = bean_origin)) + geom_col() + theme(axis.text.x = element_text(angle = 90), legend.position = "none")
+```
+
+The highest rated chocolate bars have their cocoa bean origins from **China and Sao Tome & Principe**; the Solomon Islands following closely behind.
+<br>
+
+#### What countries host the highest rated chocolate bars manufacturers?
+```{r, echo=FALSE, fig.width= 10, fig.height= 5}
+company_location_rating <- chocolate_bars %>% group_by(company_location) %>% summarise(Average_rating = mean(rating))
+
+ggplot(data = company_location_rating, aes(x = company_location, y = Average_rating, fill = company_location)) + geom_col() + theme(axis.text.x = element_text(angle = 90), legend.position = "none")
+```
+
+**Chile** hosts the manufacturer with the highest rated chocolate bar; Argentina, Poland and Sao Tome & Principe tied for second place.
+<br>
+
+#### What was the most memorable characteristic of the chocolate bar?
+```{r, echo=FALSE, warning=FALSE, fig.width= 10}
+characteristics <- chocolate_bars$review
+characteristics <- Corpus(VectorSource(characteristics))
+characteristics <- characteristics %>% 
+  tm_map(removeNumbers) %>% 
+  tm_map(removePunctuation) %>% 
+  tm_map(stripWhitespace)
+
+wordcloud(characteristics, min.freq = 1, random.order = FALSE, scale = c(3.5,0.2), colors=brewer.pal(8, "RdYlGn"))
+```
+
+As expected the most memorable feature of the chocolate bar was the **Cocoa** with the other notable features being; *Sweet, Nutty, Fruit, Roasty and Mild*.
+<br>
+
+#### Yearly ratings of chocolate bars
+```{r, echo=FALSE, fig.width= 10, fig.height= 5}
+year_reviewed_rating <- chocolate_bars %>% group_by(year_reviewed) %>% summarise(Average_rating = mean(rating))
+
+ggplot(data = year_reviewed_rating, aes(x = year_reviewed, y = Average_rating)) + geom_line(size = 2.5, color = "red") + geom_point(size = 2.5) + theme(axis.text.x = element_text(angle = 90), legend.position = "none")
+```
+
+The yearly ratings of chocolate bars has seen a steady increase as the years have gone by, with there being a slight decrease in the ratings between 2017 and 2020.
+<br>
+
+### Conclusion and Recommendation
+* Sao Tome & Principe ranks high in both cocoa bean origin ratings and manufacturer location ratings, so you should consider adding them to your wishlists of where to order your next chocolate bars from.
+
+* The Yearly ratings of chocolate bars have also experienced a steady rise; which indicates the quality is of the bars might have also seen a constant rise.
+
+* Further analysis is also required to determine if the number of ingredients used and the percentage of cocoa in the chocolate bars had any effect on the ratings; as preliminary analysis indicated that there was no correlation between the ratings and the aforementioned factors.
+
+Finally I want to Thank you for taking your time to go through my analysis, any questions or feedback is welcomed.

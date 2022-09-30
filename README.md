@@ -4,3 +4,4 @@ This repository documents my journey as a data analyst; It contains my explorato
 * [Case Fatality Rate Analysis](http://rpubs.com/Rvge_mvsrter/936603)
 * [ABC Multinatonal Bank Customer Analysis](http://rpubs.com/Rvge_mvsrter/939193)
 * [World Chocolate Bar Ratings Analysis](http://rpubs.com/Rvge_mvsrter/942955)
+* [2021/22 English Premier League Analysis](http://rpubs.com/Rvge_mvsrter/949763)

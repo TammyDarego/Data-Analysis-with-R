@@ -1,0 +1,230 @@
+---
+title: "Premier League 2021/22 Match Analysis"
+author: "by Tamunoye Darego"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+![](https://bit.ly/premierleague3-logo)
+
+#### The Data
+Join me as I explore the match data from the 2021/2022 English Premier League season and highlight interesting findings from the underlying data, this dataset is made available by [Evan Gower](https://www.kaggle.com/evangower) and can be accessed [here](https://www.kaggle.com/datasets/evangower/premier-league-match-data).
+
+It contains all 380 games premier league games and the available match data from each game is listed below;
+
+* Date
+
+* Home Team
+
+* Away Team
+
+* Full-time Home and Away Goals
+
+* Halftime Home and Away Goals
+
+* Full-time and Halftime Results
+
+* Referee
+
+* Home and Away Shots(On and Off Target)
+
+* Home and Away Fouls, Corners and Bookings(Yellow and Red Cards)
+
+#### Preparing the enviroment
+##### Loading the necessary packages 
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(forcats)
+library(readr)
+library(ggplot2)
+library(janitor)
+library(lubridate)
+```
+<br>
+
+#### Importing the dataset
+##### The dataset is imported into the R enviroment
+```{r}
+prem_matches <- read.csv("soccer21-22.csv")
+```
+<br>
+
+#### Exploring the dataset
+##### A glimpse into the structure of the data
+```{r}
+tibble(prem_matches)
+colnames(prem_matches)
+```
+<br>
+
+#### Checking and removing duplicate entries in the dataset
+```{r}
+prem_matches <- distinct(prem_matches)
+```
+<br>
+
+#### Changing the date field from character to date format
+```{r}
+prem_matches$Date <- dmy(prem_matches$Date)
+```
+<br>
+
+#### Cleaning and replacing the column names in the dataset
+##### Changing all column names to lower case
+```{r}
+prem_matches <- clean_names(prem_matches)
+```
+<br>
+
+##### Replacing abbreviations in the column names to make it more readable
+```{r}
+prem_matches_cleaned <- prem_matches %>%
+  select(date, home_team, away_team, ft_home_goals = fthg, ft_away_goals = ftag,
+         ft_result = ftr, ht_home_goals = hthg, ht_away_goals = htag, ht_results = htr,
+         referee, home_shots = hs, away_shots = as, home_shots_on_target = hst,
+         away_shots_on_target = ast, home_fouls = hf, away_fouls = af, home_corners = hc,
+         away_corners = ac, home_yellows = hy, away_yellows = ay, home_reds = hr, away_reds = ar)
+tibble(prem_matches_cleaned)
+```
+<br>
+
+#### Combining home and away stats by matches
+```{r}
+prem_matches_combined <- prem_matches %>%
+  summarise(date, home_team, away_team, goals_scored = fthg + ftag, result = ftr,
+            referee, total_shots = hs + as, shots_on_target = hst + ast,
+            fouls_committed = hf + af, corner_count = hc + ac, bookings = hy+ay+hr+ar, yellow_cards = hy+ay, red_cards = hr+ar)
+tibble(prem_matches_combined)
+```
+<br>
+
+### Exploratory Data Analysis
+#### What Teams Featured in the 2021/22 premier league season?
+The Premier League consisted of the following 20 clubs during the 2021/22 season;
+```{r}
+distinct(prem_matches,football_clubs = home_team) %>%
+  arrange(football_clubs)
+```
+<br>
+
+#### How many goals were scored throughout the season?
+```{r}
+prem_matches_combined %>% 
+  summarise(total_goals = sum(goals_scored),total_shots = sum(total_shots),
+            total_shots_on_target = sum(shots_on_target),
+            conversion_rate = total_goals/total_shots*100)
+```
+From the 380 fixtures played a total of 1,071 goals were scored from a total of 9722 shots at goal, that's an average of 2.82 goals per game and a goal conversion rate of 11%. The average goal per game of 2.82 is the joint highest average goals per game in the history of the premier league with the 2018/19 season being the other.
+
+```{r, fig.width=10, fig.height=5, warning=FALSE}
+ggplot(data = prem_matches_combined, aes(x = date, y = goals_scored)) +
+  geom_col(width = 4, fill = "#38003c") +
+  scale_x_date(date_labels="%b",date_breaks  ="1 month") +
+  xlab("Month") + ylab("Goals Scored") + labs(title = "Goals by Month")
+```
+It is interesting to note that from the 10 months of football and 38 game weeks the most goals in a game week was recorded on the final day of the season.
+
+<br>
+
+#### How did the referees fare with the games?
+```{r}
+prem_matches_combined %>%
+  summarise(referees_used = sum(count(distinct(prem_matches, referee))),
+            total_fouls = sum(fouls_committed),
+            total_bookings = sum(bookings),
+            total_yellow_cards = sum(yellow_cards),
+            total_red_cards = sum(red_cards))
+```
+There were 22 different referees officiating across the premier league season with a whooping 7,681 fouls awarded, the data does not indicate if this includes offside violations and handballs. From the fouls awarded, 1,334 resulted in bookings being handed out with majority being yellow cards, the dataset does not indicate if the red cards also include double yellow card infringements.
+
+```{r, fig.width=10, fig.height=5, warning=FALSE}
+ggplot(data = prem_matches_combined, aes(x = referee)) + 
+  geom_bar(fill = "#38003c", color = "#38003c") + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Referee") + ylab("Games Officiated") + 
+  labs(title = "Games Officiated by Referee")
+```
+
+Anthony Taylor, Paul Tierney and Craig Pawson officiated the most games during the 2021/22 season.
+
+```{r, fig.width=10, fig.height=5, warning=FALSE}
+ggplot(data = prem_matches_combined, aes(x = referee, y = bookings, fill = bookings)) + 
+  geom_col(fill = "#38003c", color = "#38003c") + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Referee") + ylab("Cards Issued") + 
+  labs(title = "Bookings Issued by Referees")
+```
+
+As expected, the referees with the most matches officiated also issued out the most bookings during throughout the season.
+
+```{r, fig.width=10, fig.height=5, warning=FALSE}
+ggplot(data = prem_matches_combined, aes(x = referee, y = red_cards, fill = bookings)) + 
+  geom_col(fill = "red", color = "#38003c") + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("Referee") + ylab("Card Count") + 
+  labs(title = "Red Cards Issued by Referees")
+```
+
+Despite not dishing out the most bookings, John Moss and Michael Oliver handed out the most red cards.
+
+<br>
+
+#### Wins, Losses and Draws
+```{r, fig.width=10, fig.height=5, warning=FALSE}
+wins <- prem_matches_cleaned %>%
+  mutate(ft_result = case_when(
+    ft_result == "H" ~ home_team,
+    ft_result == "A" ~ away_team,
+    ft_result == "D" ~ "Draw"))
+wins <- wins %>% filter(ft_result != "Draw")
+
+ggplot(data = wins, aes(x = ft_result)) +
+  geom_bar(fill = "#00ff85", color = "#38003c") +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  xlab("Teams") + ylab("Wins") + labs(title = "Total Games won by each Football team")
+```
+
+Manchester City and Liverpool managed to win the most games with both teams having over 25 wins, with the closest teams being Arsenal, Chelsea and Tottenham.While Burnley, Leeds, Norwich, Southampton and Watford being on the opposite end with neither Team being able to muster up 10 wins throughout the season.
+
+
+```{r, fig.width=10, fig.height=5, warning=FALSE}
+losses <- prem_matches_cleaned %>%
+  mutate(ft_result = case_when(
+    ft_result == "H" ~ away_team,
+    ft_result == "A" ~ home_team,
+    ft_result == "D" ~ "Draw"))
+losses <- losses %>% filter(ft_result != "Draw")
+
+ggplot(data = losses, aes(x = ft_result)) +
+  geom_bar(fill = "#e90052", color = "#38003c") +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  xlab("Teams") + ylab("Losses") + labs(title = "Total Games lost by each Football Team")
+```
+
+When you do not win games, you are likely to lose them as Norwich and Watford recording over 25 losses with Everton in close third  with 21 games lost. Whereas Manchester City and Liverpool both managed to avoid losing 5 games which is very impressive.
+
+```{r, fig.width=10, fig.height=5, warning=FALSE}
+draws <- prem_matches_cleaned %>%
+  select(home_team,away_team,ft_result) %>%
+  mutate(ft_result = case_when(
+    ft_result == "H" ~ home_team,
+    ft_result == "A" ~ away_team,
+    ft_result == "D" ~ "Draw"))
+draws <- draws %>% filter(ft_result == "Draw")
+draws <- cbind(draws[3], stack(draws[1:2]))
+
+ggplot(data = draws, aes(x = values)) +
+  geom_bar(fill = "#ffffff", color = "#38003c") +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  xlab("Teams") + ylab("Draws") + labs(title = "Total Games Drawn by each Football Team")
+```
+
+The 2021/22 Premier League also recorded 88 drawn games across the 380 fixtures recorded, meaning 23% of the games played ended in a draw. Brighton and Crystal Palace are the joint teams with the most draws with both teams managing 15 draws each followed by Burnley and Southampton having 13 and 11 draws respectively.
+
+<br>
+
+**Thank You!!!** for taking your time to go through my analysis. Any feedback or advice is welcomed.
+
+<br>
+
